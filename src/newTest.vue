@@ -18,9 +18,8 @@ const altitudee = ref();
 
 // client Make
 const vector3D = ref<Cartesian3 | undefined>();
-const computedPosition = ref();
 const ISSEntity = ref();
-const speed = ref();
+const diff = ref<Omit<GeoDataType, "altitude"> | undefined>();
 
 let viewer: Cesium.Viewer | undefined = undefined;
 
@@ -44,42 +43,23 @@ const setIssPosition = (geoData: GeoDataType) => {
 
 /** 1초간격으로 위치를 받아와 단위백터를 구하는 함수 */
 const get3DVector = () => {
-  let startTime;
-  let endTime;
   getISSPosition()
     .then((res) => {
       // start위치 구하기
-      const start = Cesium.Cartesian3.fromDegrees(
-        res.longitude,
-        res.latitude,
-        altitudee.value
-      );
-      startTime = Number(
-        new Date().getSeconds() + "." + new Date().getMilliseconds()
-      );
+      const start = { longitude: res.longitude, latitude: res.latitude };
+
       return start;
     })
     .then((start) => {
       setTimeout(() => {
-        getISSPosition().then(() => {
-          endTime = Number(
-            new Date().getSeconds() + "." + new Date().getMilliseconds()
-          );
+        getISSPosition().then((res) => {
           // end위치 구하기
-          const end = Cesium.Cartesian3.fromDegrees(
-            position.value.longitude,
-            position.value.latitude,
-            altitudee.value
-          );
+          const end = { longitude: res.longitude, latitude: res.latitude };
 
-          const 단위백터 = new Cesium.Cartesian3();
-          Cesium.Cartesian3.subtract(end, start, 단위백터);
-          Cesium.Cartesian3.divideByScalar(단위백터, 60, 단위백터);
-          Cesium.Cartesian3.normalize(단위백터, 단위백터);
-
-          vector3D.value = 단위백터;
-          speed.value =
-            Cesium.Cartesian3.distance(start, end) / (endTime - startTime);
+          diff.value = {
+            longitude: (end.longitude - start.longitude) / 1000,
+            latitude: (end.latitude - start.latitude) / 1000,
+          };
         });
       }, 1000);
     });
@@ -89,10 +69,11 @@ const get3DVector = () => {
 onMounted(() => {
   viewer = new Cesium.Viewer("cesium", {
     shouldAnimate: true,
+    shadows: true,
     // 필요없는 툴 다 false처리
     navigationHelpButton: false,
     navigationInstructionsInitiallyVisible: false,
-    timeline: false,
+    timeline: true,
     infoBox: false,
     animation: false,
     geocoder: false,
@@ -101,106 +82,118 @@ onMounted(() => {
     sceneModePicker: false,
     baseLayerPicker: false,
   });
+  /** 실제 현재시간 */
+  const currentTime = Cesium.JulianDate.now();
+
+  // Set up the clock
+  /**뷰어의 현재시간을 2초전으로 */
+  viewer.clock.startTime = Cesium.JulianDate.addSeconds(
+    currentTime.clone(),
+    2,
+    new Cesium.JulianDate()
+  );
+  viewer.clock.currentTime = currentTime.clone();
+  // viewer.clock.stopTime = currentTime.clone();
+  viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
+  viewer.clock.multiplier = 1;
+  /**샘플 포지션을 담을 곳 */
+  const positionProperty = new Cesium.SampledPositionProperty();
+
+  // get3DVector();
+  getISSPosition().then((res) => {
+    if (!viewer) {
+      return;
+    }
+    const cartesianPosition = Cesium.Cartesian3.fromDegrees(
+      res.longitude,
+      res.latitude,
+      res.altitude
+    );
+
+    positionProperty.addSample(viewer.clock.startTime, cartesianPosition);
+
+    viewer.entities.add({
+      id: "iss",
+      availability: new Cesium.TimeIntervalCollection([
+        new Cesium.TimeInterval({ start: viewer.clock.startTime }),
+      ]),
+      position: positionProperty,
+      model: {
+        uri: Iss,
+        minimumPixelSize: 128,
+        maximumScale: 20000,
+      },
+    });
+
+    viewer.trackedEntity = viewer.entities.getById("iss");
+  });
 
   ISSEntity.value = viewer.entities.getById("iss");
-  get3DVector();
-  getISSPosition()
-    .then((res) => setIssPosition(res))
-    .then(() => {
-      if (!viewer) {
-        return;
-      }
-      viewer.entities.add({
-        id: "iss",
-        position: Cesium.Cartesian3.fromDegrees(
-          position.value.longitude,
-          position.value.latitude,
-          altitudee.value
-        ),
-        model: {
-          uri: Iss,
-          minimumPixelSize: 128,
-          maximumScale: 20000,
-        },
-      });
-      viewer.trackedEntity = viewer.entities.getById("iss");
-    })
-    .then(() => {});
+
+  setInterval(function () {
+    getISSPosition().then((res) => {
+      setIssPosition(res);
+      positionProperty.addSample(
+        Cesium.JulianDate.now(),
+        Cesium.Cartesian3.fromDegrees(res.longitude, res.latitude, res.altitude)
+      );
+    });
+  }, 2000);
 });
 
-watch([altitudee, position, vector3D, speed], () => {
-  if (!viewer || !altitudee || !viewer?.entities?.getById("iss")) {
-    return;
-  }
-  const ISSEntity = viewer.entities.getById("iss");
+// watch([altitudee, position, vector3D, diff], () => {
+//   if (!viewer || !altitudee || !viewer?.entities?.getById("iss")) {
+//     return;
+//   }
+//   const ISSEntity = viewer.entities.getById("iss");
 
-  if (ISSEntity === undefined) {
-    return;
-  }
+//   if (ISSEntity === undefined) {
+//     return;
+//   }
 
-  if (vector3D.value !== undefined) {
-    const startPosition = ISSEntity.position
+//   if (diff.value !== undefined) {
+//     const startPosition = position.value;
+//     // 최초 포지션 바꾸기
 
-    // console.log(vector3D.value,speed.value)
-    const endposition = Cesium.Cartesian3.multiplyByScalar(
-      vector3D.value,
-      speed.value,
-      new Cesium.Cartesian3()
-    );
-    const newPosition = Cesium.Cartesian3.add(
-      startPosition,
-      endposition,
-      new Cesium.Cartesian3()
-    );
+//     let newPosition = {
+//       longitude: startPosition.longitude - diff.value.longitude,
+//       latitude: startPosition.latitude - diff.value.latitude,
+//       altitude: altitudee.value,
+//     };
 
-    // 엔티티에 적용
-    ISSEntity.position = newPosition;
-    // console.log(newPosition);
+//     if (newPosition.longitude >= 180) {
+//       newPosition.longitude =
+//         startPosition.longitude - diff.value.longitude - 360;
+//     }
+//     if (newPosition.longitude <= -180) {
+//       newPosition.longitude =
+//         startPosition.longitude - diff.value.longitude + 360;
+//     }
+//     if (newPosition.latitude >= -180) {
+//       newPosition.latitude = startPosition.latitude - diff.value.latitude + 360;
+//     }
+//     if (newPosition.latitude <= -180) {
+//       newPosition.latitude = startPosition.latitude - diff.value.latitude + 360;
+//     }
 
-    // 최초 포지션 바꾸기
-    const cartographic = Cesium.Cartographic.fromCartesian(newPosition);
+//     // 엔티티에 적용
+//     ISSEntity.position = Cesium.Cartesian3.fromDegrees(
+//       newPosition.longitude,
+//       newPosition.latitude,
+//       newPosition.altitude
+//     );
 
-    const longitude = Cesium.Math.toDegrees(cartographic.longitude);
-    const latitude = Cesium.Math.toDegrees(cartographic.latitude);
-    const altitude = Cesium.Math.toDegrees(cartographic.height);
-
-    setTimeout(() => {
-      position.value = { longitude, latitude };
-      altitudee.value = altitude;
-    }, 16);
-  }
-});
-
-const 추락시키기 = ref(false);
-
-watch([추락시키기, altitudee], () => {
-  if (추락시키기.value) {
-    setTimeout(() => {
-      if (altitudee.value > 1000) {
-        altitudee.value = altitudee.value - 1000;
-      }
-    }, 16);
-  }
-  if (!추락시키기.value) {
-    setTimeout(() => {
-      if (altitudee.value <= backupAltitude.value) {
-        altitudee.value = altitudee.value + 10000;
-      }
-    }, 16);
-  }
-});
+//     setTimeout(() => {
+//       position.value = {
+//         longitude: newPosition.longitude,
+//         latitude: newPosition.latitude,
+//       };
+//     }, 1);
+//   }
+// });
 </script>
 
 <template>
-  <button
-    @click="
-      () => {
-        추락시키기 = !추락시키기;
-      }
-    "
-  >
-    {{ 추락시키기 ? "다시 올리기" : "추락시키기" }}
-  </button>
   <div id="cesium" :style="{ width: '100vw', height: '100vh' }"></div>
 </template>
 
