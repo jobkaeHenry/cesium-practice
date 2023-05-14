@@ -12,7 +12,6 @@ type Vector3D = {
   altitude: number;
 };
 
-
 const altitudee = ref();
 const position = ref();
 
@@ -109,28 +108,36 @@ onMounted(() => {
     baseLayerPicker: false,
   });
 
-//   ISSEntity.value = viewer.entities.getById("iss");
+  //   ISSEntity.value = viewer.entities.getById("iss");
 
-  getISSPosition().then((res) => {
-    setIssPosition(res);
-    if (!viewer) {
-      return;
-    }
-    viewer.entities.add({
-      id: "iss",
-      position: Cesium.Cartesian3.fromDegrees(
-        position.value.longitude,
-        position.value.latitude,
-        altitudee.value
-      ),
-      model: {
-        uri: Iss,
-        minimumPixelSize: 128,
-        maximumScale: 20000,
-      },
+  getISSPosition()
+    .then((res) => {
+      setIssPosition(res);
+      if (!viewer) {
+        return;
+      }
+      viewer.entities.add({
+        id: "iss",
+        position: Cesium.Cartesian3.fromDegrees(
+          position.value.longitude,
+          position.value.latitude,
+          altitudee.value
+        ),
+        model: {
+          uri: Iss,
+          minimumPixelSize: 128,
+          maximumScale: 20000,
+        },
+      });
+      viewer.trackedEntity = viewer.entities.getById("iss");
+    })
+    .then(() => {
+      axios
+        .get("http://jobkaehenry.iptime.org")
+        .then(({ data }: {data:Vector3D[]}) => {
+          보간배열.value = data;
+        });
     });
-    viewer.trackedEntity = viewer.entities.getById("iss");
-  });
   setInterval(() => {
     위치차구하기();
   }, 2000);
@@ -143,9 +150,9 @@ watch([altitudee, position], () => {
   }
   const ISSEntity = viewer.entities.getById("iss");
 
-//   if (ISSEntity === undefined) {
-//     return;
-//   }
+  //   if (ISSEntity === undefined) {
+  //     return;
+  //   }
 
   ISSEntity.position = Cartesian3.fromDegrees(
     position.value.longitude,
