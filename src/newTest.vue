@@ -1,15 +1,10 @@
-<script setup lang="ts">
+<script setup>
 import * as Cesium from "cesium";
 import { onMounted, ref, watch } from "vue";
 import axios from "axios";
 import Iss from "./assets/ISS_stationary.glb";
 import { Cartesian3 } from "cesium";
 
-interface GeoDataType {
-  longitude: number;
-  latitude: number;
-  altitude: number;
-}
 
 // server Sent
 const backupAltitude = ref();
@@ -17,12 +12,12 @@ const position = ref();
 const altitudee = ref();
 
 // client Make
-const vector3D = ref<Cartesian3 | undefined>();
+const vector3D = ref();
 const computedPosition = ref();
 const ISSEntity = ref();
 const speed = ref();
 
-let viewer: Cesium.Viewer | undefined = undefined;
+let viewer= undefined;
 
 /** longtitude, latitude, altitude 를 리턴함 */
 const getISSPosition = async () => {
@@ -36,7 +31,7 @@ const getISSPosition = async () => {
 };
 
 /** geoData를 받아 Position에 업데이트함 */
-const setIssPosition = (geoData: GeoDataType) => {
+const setIssPosition = (geoData) => {
   const { longitude, latitude } = geoData;
   position.value = { longitude, latitude };
   altitudee.value = geoData.altitude;
