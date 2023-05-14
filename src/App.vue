@@ -109,7 +109,7 @@ onMounted(() => {
     baseLayerPicker: false,
   });
 
-  ISSEntity.value = viewer.entities.getById("iss");
+//   ISSEntity.value = viewer.entities.getById("iss");
 
   getISSPosition().then((res) => {
     setIssPosition(res);
@@ -143,16 +143,65 @@ watch([altitudee, position], () => {
   }
   const ISSEntity = viewer.entities.getById("iss");
 
-  if (ISSEntity === undefined) {
-    return;
-  }
+//   if (ISSEntity === undefined) {
+//     return;
+//   }
 
+<<<<<<< HEAD
   ISSEntity.position = Cartesian3.fromDegrees(
     position.value.longitude,
     position.value.latitude,
     altitudee.value
   );
 });
+=======
+//   if (vector3D.value !== undefined) {
+//     const startPosition = Cesium.Cartesian3.fromDegrees(
+//       position.value.longitude,
+//       position.value.latitude,
+//       altitudee.value
+//     );
+
+//     const newPosition = Cesium.Cartesian3.add(
+//       startPosition,
+//       vector3D.value,
+//       new Cesium.Cartesian3()
+//     );
+
+//     // 최초 포지션 바꾸기
+//     const cartographic = Cesium.Cartographic.fromCartesian(newPosition);
+//     const longitude = Cesium.Math.toDegrees(cartographic.longitude);
+//     const latitude = Cesium.Math.toDegrees(cartographic.latitude);
+
+//     ISSEntity.position = newPosition;
+
+//     setTimeout(() => {
+//       position.value = { longitude, latitude };
+//     }, 16);
+
+//     return;
+//   }
+// });
+
+// const 추락시키기 = ref(false);
+
+// watch([추락시키기, altitudee], () => {
+//   if (추락시키기.value) {
+//     setTimeout(() => {
+//       if (altitudee.value > 1000) {
+//         altitudee.value = altitudee.value - 1000;
+//       }
+//     }, 16);
+//   }
+//   if (!추락시키기.value) {
+//     setTimeout(() => {
+//       if (altitudee.value <= backupAltitude.value) {
+//         altitudee.value = altitudee.value + 10000;
+//       }
+//     }, 16);
+//   }
+// });
+>>>>>>> 49522d8261b8bee89a887be4b5dcf6bd9bd09260
 </script>
 
 <template>
@@ -165,8 +214,13 @@ watch([altitudee, position], () => {
   >
     {{ 추락시키기 ? "다시 올리기" : "추락시키기" }}
   </button> -->
+<<<<<<< HEAD
   <!-- <newTest></newTest> -->
   <div id="cesium" :style="{ width: '100vw', height: '100vh' }"></div>
+=======
+  <newTest></newTest>
+  <!-- <div id="cesium" :style="{ width: '100vw', height: '100vh' }"></div> -->
+>>>>>>> 49522d8261b8bee89a887be4b5dcf6bd9bd09260
 </template>
 
 <style scoped>
